@@ -68,8 +68,17 @@ function Studio() {
       }
     };
     rec.onerror = (ev) => {
-      if (ev.error === "not-allowed") toast.error("Microphone access denied.");
-      else if (ev.error !== "aborted" && ev.error !== "no-speech") toast.error(`Voice error: ${ev.error}`);
+      if (ev.error === "not-allowed" || ev.error === "permission-denied") {
+        toast.error("Mic blocked. Allow microphone access in your browser, then reload.");
+      } else if (ev.error === "audio-capture") {
+        toast.error("No microphone detected. Check your device and OS privacy settings, then reload.", { duration: 6000 });
+      } else if (ev.error === "service-not-allowed") {
+        toast.error("Voice service blocked. Try opening this in a new tab.");
+      } else if (ev.error === "network") {
+        toast.error("Network issue reaching the voice service. Check your connection.");
+      } else if (ev.error !== "aborted" && ev.error !== "no-speech") {
+        toast.error(`Voice error: ${ev.error}`);
+      }
     };
     rec.onend = () => { startedRef.current = false; setListening(false); };
     rec.onstart = () => { startedRef.current = true; setListening(true); };
