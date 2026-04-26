@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Send, Mail, Calendar, Bell, MessageSquare, FileSpreadsheet, CheckCircle2 } from "lucide-react";
+import { Send, Mail, Calendar, Bell, MessageSquare, FileSpreadsheet, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { parseCommand } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/commands")({
   head: () => ({
@@ -23,40 +25,24 @@ const examples = [
 
 type Intent = { kind: string; summary: string; params: Record<string, string> };
 
-function parseIntent(input: string): Intent | null {
-  const t = input.trim();
-  if (!t) return null;
-  const lower = t.toLowerCase();
-  if (/^(send|email|write).*email/i.test(t) || lower.startsWith("email")) {
-    const to = t.match(/to\s+([A-Z][a-z]+)/)?.[1] ?? "recipient";
-    const body = t.split(/saying|that|:/i).slice(1).join(" ").trim() || t;
-    return { kind: "email", summary: `Email ${to}`, params: { to, body } };
-  }
-  if (/calendar|meeting|event|schedule/i.test(t)) {
-    return { kind: "calendar", summary: "Create calendar event", params: { detail: t } };
-  }
-  if (/remind/i.test(t)) {
-    return { kind: "reminder", summary: "Set reminder", params: { detail: t } };
-  }
-  if (/slack|message/i.test(t)) {
-    const channel = t.match(/#([a-z0-9_-]+)/i)?.[1] ?? "general";
-    return { kind: "slack", summary: `Post to #${channel}`, params: { channel, body: t } };
-  }
-  if (/spreadsheet|sheet|expenses|table/i.test(t)) {
-    return { kind: "sheet", summary: "Generate spreadsheet", params: { detail: t } };
-  }
-  return { kind: "note", summary: "Save as note", params: { body: t } };
-}
-
 function Commands() {
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<Intent | null>(null);
   const [log, setLog] = useState<{ id: string; intent: Intent; at: number }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const parseFn = useServerFn(parseCommand);
 
-  const propose = () => {
-    const i = parseIntent(input);
-    if (!i) { toast.error("Tell me what to do."); return; }
-    setPending(i);
+  const propose = async () => {
+    if (!input.trim()) { toast.error("Tell me what to do."); return; }
+    setLoading(true);
+    try {
+      const { intent } = await parseFn({ data: { text: input } });
+      setPending(intent as Intent);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI parsing failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const confirm = () => {
@@ -85,9 +71,10 @@ function Commands() {
           className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 p-4 text-base outline-none ring-primary/40 focus:ring-2"
         />
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">Aurora confirms before executing anything.</p>
-          <button onClick={propose} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-5 py-2.5 text-sm font-medium text-primary-foreground">
-            <Send className="size-4" /> Propose
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="size-3 text-primary" /> Powered by Aurora AI · confirms before executing.</p>
+          <button onClick={propose} disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+            {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {loading ? "Thinking…" : "Propose"}
           </button>
         </div>
 
