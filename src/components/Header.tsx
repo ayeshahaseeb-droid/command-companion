@@ -5,6 +5,7 @@ const links = [
   { to: "/", label: "Home" },
   { to: "/app", label: "Dictate" },
   { to: "/commands", label: "Commands" },
+  { to: "/chat", label: "Ask" },
   { to: "/workflows", label: "Workflows" },
   { to: "/memory", label: "Memory" },
   { to: "/vocabulary", label: "Vocabulary" },
