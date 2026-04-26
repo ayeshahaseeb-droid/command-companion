@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Mic, MicOff, Trash2, Copy, Download, Sparkles, Keyboard } from "lucide-react";
+import { Mic, MicOff, Trash2, Copy, Download, Sparkles, Keyboard, Wand2, Loader2 } from "lucide-react";
 import { getSpeechRecognition, type SpeechRecognitionLike } from "@/lib/speech";
 import { cleanTranscript, load, save } from "@/lib/aurora";
+import { polishTranscript } from "@/lib/ai.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app")({
@@ -24,8 +26,11 @@ function Studio() {
   const [final, setFinal] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [vocab, setVocab] = useState<{ phrase: string; expansion: string }[]>([]);
+  const [aiCleaned, setAiCleaned] = useState("");
+  const [polishing, setPolishing] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const startedRef = useRef(false);
+  const polishFn = useServerFn(polishTranscript);
 
   useEffect(() => {
     setHistory(load<HistoryItem[]>("aurora.history", []));
@@ -87,17 +92,32 @@ function Studio() {
   }, [start, stop]);
 
   const commit = () => {
-    const cleaned = cleanTranscript(final, vocab);
+    const cleaned = aiCleaned || cleanTranscript(final, vocab);
     if (!cleaned) return;
     const next = [{ id: crypto.randomUUID(), text: cleaned, at: Date.now() }, ...history].slice(0, 50);
     setHistory(next);
     save("aurora.history", next);
     setFinal("");
     setInterim("");
+    setAiCleaned("");
     toast.success("Transcript saved");
   };
 
-  const clearAll = () => { setFinal(""); setInterim(""); };
+  const clearAll = () => { setFinal(""); setInterim(""); setAiCleaned(""); };
+  const polishWithAI = async () => {
+    const src = (final + " " + interim).trim();
+    if (!src) { toast.error("Nothing to polish yet."); return; }
+    setPolishing(true);
+    try {
+      const { cleaned } = await polishFn({ data: { text: src } });
+      setAiCleaned(cleaned);
+      toast.success("Polished by Aurora AI");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI polish failed");
+    } finally {
+      setPolishing(false);
+    }
+  };
   const copyOne = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copied"); };
   const removeOne = (id: string) => {
     const next = history.filter((h) => h.id !== id);
@@ -111,7 +131,7 @@ function Studio() {
     URL.revokeObjectURL(url);
   };
 
-  const cleanedPreview = cleanTranscript((final + " " + interim).trim(), vocab);
+  const cleanedPreview = aiCleaned || cleanTranscript((final + " " + interim).trim(), vocab);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-32 pt-12">
