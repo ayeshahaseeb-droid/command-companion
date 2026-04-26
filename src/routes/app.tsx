@@ -195,9 +195,13 @@ function Studio() {
           <div className="glass rounded-2xl p-5">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                <Sparkles className="size-3.5 text-primary" /> Cleaned
+                <Sparkles className="size-3.5 text-primary" /> {aiCleaned ? "AI polished" : "Cleaned"}
               </h3>
               <div className="flex gap-2">
+                <button onClick={polishWithAI} disabled={polishing || !final.trim()} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:opacity-30" title="Polish with Aurora AI">
+                  {polishing ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
+                  AI
+                </button>
                 <button onClick={() => copyOne(cleanedPreview)} disabled={!cleanedPreview} className="rounded-md p-1.5 text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:opacity-30">
                   <Copy className="size-3.5" />
                 </button>
